@@ -9,7 +9,6 @@ from random import random
 CHAT_ID = 2000000001
 
 seed(1)
-
 def write(message):
     vk.method('messages.send', {'peer_id' : CHAT_ID, 'random_id' : random(), 'message' : message})
 
@@ -23,9 +22,7 @@ muted = False
 
 write("Князева активирована")
 for event in longpoll.listen():
-    if event.type == VkEventType.USER_TYPING_IN_CHAT and muted == False:
-        write("Ну кто опять блямкает????")
-    elif event.type == VkEventType.MESSAGE_NEW:
+    if event.type == VkEventType.MESSAGE_NEW:
         if event.to_me and event.text[:6] == "Князь,":
             messageText = event.text[7:]
             command = messageText[:4]
@@ -44,7 +41,7 @@ for event in longpoll.listen():
                     write("Ку!")
                 elif command == "Calc":
                     try:
-                        mathResult = calculator.evaluate_expression(messageText[5:].replace("pi", "3.14159"), {})
+                        mathResult = calculator.evaluate_expression("   " + messageText[4:].replace("pi", "3.14159"), {})
                     except:
                         mathResult = "Ты хоть условие перепиши нормально, я ничего не поняла из того, что ты написал"
                     write(mathResult)
