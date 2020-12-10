@@ -1,19 +1,21 @@
-import logging
+from datetime import date
+from random import random, randint, seed
+
 import cexprtk as calculator
 import vk_api
+import re
+from pymongo import MongoClient
 from vk_api.longpoll import VkLongPoll, VkEventType
-from datetime import date
-from pymongo import MongoClient, monitoring
+
 from dbLogger import CommandLogger
-from random import random, randint, seed
 
 CONNECTION_PORT = 27017
 TOKEN = '1432f7b6fbeaf1168c58e9afec35418b180b77a433cef4e1e5b0d298c9160ce3d1221fa8e3f0e97074c0f'
 
-#Setup randomizer
+# Setup randomizer
 seed(1)
 
- # default bot state = active (unmuted)
+# default bot state = active (unmuted)
 muted = False
 
 # Setup database 
@@ -25,14 +27,16 @@ knyazevaCollection = knyazevaDatabase['quotes']
 vk = vk_api.VkApi(token=TOKEN)
 longpoll = VkLongPoll(vk)
 
+
 def write(message, peer_id):
     vk.method('messages.send', {
-                    'peer_id' : peer_id, 
-                    'random_id' : random(), 
-                    'message' : message
-             })
+        'peer_id': peer_id,
+        'random_id': random(),
+        'message': message
+    })
 
-write('Князева активирована', 2000000001)
+
+# write('Князева активирована', 2000000001)
 for event in longpoll.listen():
     if event.type == VkEventType.MESSAGE_NEW:
         if event.to_me and event.text[:6] == 'Князь,':
@@ -47,13 +51,22 @@ for event in longpoll.listen():
                         muted = False
                         write('Княжий балдеж закончился, сдаем дз по геометрии', peer_id)
             else:
-                if command == 'AddQ':
+                if command == 'Help':
+                    write("Тут обитает супер крутой бот - Елена Князь. Пока у нее доступны следующие команды: (Любую "
+                          "команду нужно начинать с 'Князь, '. Собственно, команды: Help. Князь покажет напишет это "
+                          "сообщение\nCalc (выражение). Елена Князь "
+                          "посчитает за вас математическое выражение.\nStfu. Князь перестанет отвечать на ваши "
+                          "сообщения, пока ей не напишут Back\nAddQ авторЦитаты&Цитата\nGetQ Автор&ИмяАвтора или "
+                          "Цитата&СодержаниеЦитаты или Год&ГодЦитаты\nНапример,\nAddQ ЕЮ&Блямкает\nGetQ "
+                          "Автор&ЕЮ\nGetQ Цитата&Блямкает\nGetQ Год&2020", peer_id)
+                elif command == 'AddQ':
                     splitQuote = messageText[4:].lstrip().split('&', 1)
-                    knyazevaCollection.insert_one({ 'author' : splitQuote[0].lstrip(), 
-                                                    'quote' : splitQuote[1][4:].lstrip(),
-                                                    'date' : date.today().strftime('%Y')
-                                                })
-                
+                    knyazevaCollection.insert_one({'author': splitQuote[0].lstrip(),
+                                                   'quote': splitQuote[1][4:].lstrip(),
+                                                   'date': date.today().strftime('%Y')
+                                                   })
+                    write("Хватит блямкать и сбивать меня, сейчас я всё сохраню", peer_id)
+
                 elif command == 'GetQ':
                     splitQuote = messageText[4:].lstrip().split('&', 1)
                     searchType = splitQuote[0]
@@ -67,11 +80,17 @@ for event in longpoll.listen():
                     else:
                         write('Ты сам понял что сказал?', peer_id)
                     if searchField != 'no':
-                        for doc in knyazevaCollection.find({searchField : splitQuote[1][4:].lstrip()}).sort('date'):
-                            write('{author}: {quote}'.format(author=doc['author'], quote=doc['quote']), peer_id)
+                        searchPattern = re.compile(splitQuote[1][4:].lstrip(), re.I)
+                        if knyazevaCollection.count_documents({searchField: {'$regex': searchPattern}}) == 0:
+                            write('Корней нет', peer_id)
+                        else:
+                            foundQuotes = knyazevaCollection.find({searchField: {'$regex': searchPattern}}).sort('date')
+                            for doc in foundQuotes:
+                                write('{author}: {quote}'.format(author=doc['author'], quote=doc['quote']), peer_id)
                 elif command == 'RndQ':
                     splitQuote = messageText[4:].lstrip().split('&', 1)
                     searchType = splitQuote[0]
+
                     searchField = 'no'
                     if searchType == 'Автор':
                         searchField = 'author'
@@ -80,9 +99,10 @@ for event in longpoll.listen():
                     else:
                         write('Ты сам понял что сказал?', peer_id)
                     if searchField != 'no':
-                        x = knyazevaCollection.find({searchField : splitQuote[1][4:].lstrip()}).limit(-1)
+                        x = knyazevaCollection.find({searchField: splitQuote[1][4:].lstrip()}).limit(-1)
                         randomQuote = x.skip(randint(0, x.count() - 1)).next()
-                        write('{author}: {quote}'.format(author=randomQuote['author'], quote=randomQuote['quote']), peer_id)
+                        write('{author}: {quote}'.format(author=randomQuote['author'], quote=randomQuote['quote']),
+                              peer_id)
 
                 elif command == 'Stfu':
                     muted = True
@@ -91,7 +111,8 @@ for event in longpoll.listen():
                     write('Ку!', peer_id)
                 elif command == 'Calc':
                     try:
-                        mathResult = calculator.evaluate_expression(' ' + messageText[4:].replace('pi', '3.14159').lstrip(), {})
+                        mathResult = calculator.evaluate_expression(
+                            ' ' + messageText[4:].replace('pi', '3.14159').lstrip(), {})
                     except:
                         mathResult = 'Ты хоть условие перепиши нормально, я ничего не поняла из того, что ты написал'
                     write(mathResult, peer_id)
