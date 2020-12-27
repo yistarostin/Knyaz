@@ -2,6 +2,7 @@ from datetime import date
 from random import random, randint, seed
 
 import bs4
+import json
 import time
 from vk_api import audio
 import requests
@@ -33,7 +34,13 @@ knyazevaCollection = knyazevaDatabase['quotes']
 # Setup VK connection
 vk = vk_api.VkApi(token=TOKEN)
 longpoll = VkLongPoll(vk)
-
+login = '+79687308990' #your telephone number shout be put here
+password = '******'  #your vk pass shout be put here
+user_audio_id = ''
+vk_session = vk_api.VkApi(login=login, password=password)
+vk_session.auth()
+vk1 = vk_session.get_api()
+vk_audio = audio.VkAudio(vk_session)
 
 def write(message, peer_id):
     vk.method('messages.send', {
@@ -43,17 +50,14 @@ def write(message, peer_id):
     })
 
 
-def audioGetter(audio_id, my_id):
-    resultUrl = {0:"Go to daemons, there isnt your audio"}
-    login = '+79687308990' #your telephone number shout be put here
-    password = 'NiCk2004'  #your vk pass shout be put here
+def useIdGetter(url):
+    return vk1.utils.resolveScreenName(screen_name=url[15:])['object_id']
+
+
+def audioGetter(audio_id):                               #audio JSON parser (it searches name of track in JSON). Returns track's url
+    resultUrl = {0:"Go to demons, there isn't your audio"}
     #my_id = '296839363' #id of audio-reading user
-    vk_session = vk_api.VkApi(login=login, password=password)
-    vk_session.auth()
-    vk = vk_session.get_api()
-    vk_audio = audio.VkAudio(vk_session)
-    audio1 = vk_audio.get(owner_id=my_id)
-    print(audio1)
+    audio1 = JSONReader()
     j = 0
     for i in audio1:
         if audio_id in i["title"]:
@@ -61,6 +65,22 @@ def audioGetter(audio_id, my_id):
             j+=1
 
     return resultUrl
+
+def audioJSONGetter(my_id):                                     #audio JSON getter throw user id
+    #resultUrl = {0:"Go to demons, there isn't your audio"}
+    #my_id = '296839363' #id of audio-reading user
+    audio1 = vk_audio.get(owner_id=my_id)
+    print(audio1)
+    return audio1
+
+
+def JSONreWriter(new_json):                                     #JSON rewriter method
+    with open('audio.json', "w") as f:
+        json.dump(new_json, f)
+
+def JSONReader():                                               #JSON reader method
+    with open('audio.json', 'r', encoding='utf-8') as fh:
+        return json.load(fh)
 
 
 # write('Князева активирована', 2000000001)
@@ -70,7 +90,7 @@ for event in longpoll.listen():
         if event.to_me and event.text[:6] == 'Князь,':
             peer_id = event.peer_id
             messageText = event.text[7:]
-            if buf==False or "ASto" in messageText:
+            if buf==False or "ASto" in messageText or "AUrl" in messageText:
                 command = messageText[:4]
                 buf = False
             if muted:
@@ -81,19 +101,32 @@ for event in longpoll.listen():
                         muted = False
                         write('Княжий балдеж закончился, сдаем дз по геометрии', peer_id)
             else:
-                if buf == True:
-                    result = audioGetter(messageText, peer_id)
+                #Audio commands:
+                if buf == True:                                 #giving new audio-link as answer to name of track 
+                    result = audioGetter(messageText)
+                    buf = True
                     print(result)
                     for i in result.values():
                         write(i, peer_id)
-                    #write(, peer_id)
-                if command == 'ASto':
-                    #print (peer_id)
+                if command == 'ASto':                           #stop
                     write('Knyazz DJ has been turned off', peer_id)
-                if command == 'ASta':
-                    write('Ready for sending some audio-files. Please, send their names to me', peer_id)
+                    command = ''
+                if command == 'ASta':                           #start
+                    user_audio_id = peer_id
+                    JSONreWriter(audioJSONGetter(user_audio_id))
                     buf = True
-                
+                    command = ''
+                    write('Ready for sending some audio-files. Please, send their names to me', peer_id)
+                if command == 'AUrl':
+                    print(command)
+                    messageText = messageText[5:]
+                    print(messageText)
+                    user_audio_id = useIdGetter(messageText)    #Rewriting throw other user's url
+                    JSONreWriter(audioJSONGetter(user_audio_id))
+                    buf = True
+                    write('Author setting accomplished', peer_id)
+                    command = ''
+                #Help command:
                 if command == 'Help':
                     write("Тут обитает супер крутой бот - Елена Князь. Пока у нее доступны следующие команды: (Любую "
                           "команду нужно начинать с 'Князь, '. Собственно, команды: Help. Князь покажет напишет это "
@@ -102,6 +135,7 @@ for event in longpoll.listen():
                           "сообщения, пока ей не напишут Back\nAddQ авторЦитаты&Цитата\nGetQ Автор&ИмяАвтора или "
                           "Цитата&СодержаниеЦитаты или Год&ГодЦитаты\nНапример,\nAddQ ЕЮ&Блямкает\nGetQ "
                           "Автор&ЕЮ\nGetQ Цитата&Блямкает\nGetQ Год&2020", peer_id)
+                #Quote commands:
                 elif command == 'AddQ':
                     splitQuote = messageText[4:].lstrip().split('&', 1)
                     knyazevaCollection.insert_one({'author': splitQuote[0].lstrip(),
@@ -146,7 +180,8 @@ for event in longpoll.listen():
                         randomQuote = x.skip(randint(0, x.count() - 1)).next()
                         write('{author}: {quote}'.format(author=randomQuote['author'], quote=randomQuote['quote']),
                               peer_id)
-
+                
+                #Calculating commands:
                 elif command == 'Stfu':
                     muted = True
                     write('У меня Княжий Балдеж, оставляю вас в покое', peer_id)
