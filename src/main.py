@@ -112,11 +112,11 @@ for event in longpoll.listen():
                     write('Knyazz DJ has been turned off', peer_id)
                     command = ''
                 if command == 'ASta':                           #start
-                    write('Ready for sending some audio-files. Please, send their names to me', peer_id)
                     user_audio_id = peer_id
                     JSONreWriter(audioJSONGetter(user_audio_id))
                     buf = True
                     command = ''
+                    write('Ready for sending some audio-files. Please, send their names to me', peer_id)
                 if command == 'AUrl':
                     print(command)
                     messageText = messageText[5:]
