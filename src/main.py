@@ -1,9 +1,16 @@
 from datetime import date
 from random import random, randint, seed
 
+import bs4
+import time
+from vk_api import audio
+import requests
+from time import time
+import os
 import cexprtk as calculator
 import vk_api
-import re
+from vk_api import audio
+import re   
 from pymongo import MongoClient
 from vk_api.longpoll import VkLongPoll, VkEventType
 
@@ -36,13 +43,36 @@ def write(message, peer_id):
     })
 
 
+def audioGetter(audio_id, my_id):
+    resultUrl = {0:"Go to daemons, there isnt your audio"}
+    login = '+79687308990' #your telephone number shout be put here
+    password = 'NiCk2004'  #your vk pass shout be put here
+    #my_id = '296839363' #id of audio-reading user
+    vk_session = vk_api.VkApi(login=login, password=password)
+    vk_session.auth()
+    vk = vk_session.get_api()
+    vk_audio = audio.VkAudio(vk_session)
+    audio1 = vk_audio.get(owner_id=my_id)
+    print(audio1)
+    j = 0
+    for i in audio1:
+        if audio_id in i["title"]:
+            resultUrl[j] = i["url"]
+            j+=1
+
+    return resultUrl
+
+
 # write('Князева активирована', 2000000001)
+buf = False
 for event in longpoll.listen():
     if event.type == VkEventType.MESSAGE_NEW:
         if event.to_me and event.text[:6] == 'Князь,':
             peer_id = event.peer_id
             messageText = event.text[7:]
-            command = messageText[:4]
+            if buf==False or "ASto" in messageText:
+                command = messageText[:4]
+                buf = False
             if muted:
                 if command == 'Back':
                     if muted == False:
@@ -51,6 +81,19 @@ for event in longpoll.listen():
                         muted = False
                         write('Княжий балдеж закончился, сдаем дз по геометрии', peer_id)
             else:
+                if buf == True:
+                    result = audioGetter(messageText, peer_id)
+                    print(result)
+                    for i in result.values():
+                        write(i, peer_id)
+                    #write(, peer_id)
+                if command == 'ASto':
+                    #print (peer_id)
+                    write('Knyazz DJ has been turned off', peer_id)
+                if command == 'ASta':
+                    write('Ready for sending some audio-files. Please, send their names to me', peer_id)
+                    buf = True
+                
                 if command == 'Help':
                     write("Тут обитает супер крутой бот - Елена Князь. Пока у нее доступны следующие команды: (Любую "
                           "команду нужно начинать с 'Князь, '. Собственно, команды: Help. Князь покажет напишет это "
