@@ -34,8 +34,8 @@ knyazevaCollection = knyazevaDatabase['quotes']
 # Setup VK connection
 vk = vk_api.VkApi(token=TOKEN)
 longpoll = VkLongPoll(vk)
-login = '+79687308990' #your telephone number shout be put here
-password = '******'  #your vk pass shout be put here
+login = '+79687308990' #your telephone number should be put here
+password = '******'  #your vk pass should be put here
 user_audio_id = ''
 vk_session = vk_api.VkApi(login=login, password=password)
 vk_session.auth()
@@ -56,7 +56,6 @@ def useIdGetter(url):
 
 def audioGetter(audio_id):                               #audio JSON parser (it searches name of track in JSON). Returns track's url
     resultUrl = {0:"Go to demons, there isn't your audio"}
-    #my_id = '296839363' #id of audio-reading user
     audio1 = JSONReader()
     j = 0
     for i in audio1:
@@ -67,8 +66,6 @@ def audioGetter(audio_id):                               #audio JSON parser (it 
     return resultUrl
 
 def audioJSONGetter(my_id):                                     #audio JSON getter throw user id
-    #resultUrl = {0:"Go to demons, there isn't your audio"}
-    #my_id = '296839363' #id of audio-reading user
     audio1 = vk_audio.get(owner_id=my_id)
     print(audio1)
     return audio1
